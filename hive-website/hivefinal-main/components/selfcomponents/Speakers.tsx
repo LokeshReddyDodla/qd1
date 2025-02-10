@@ -105,7 +105,7 @@ export default function Speakers() {
 
       {/* Cards Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-6 max-w-7xl mx-auto mb-5">
-        {cardData.map((person, index) => (
+        {cardData.map( (person, index) => (
           <CardContainer key={index} className="inter-var">
             <CardBody className="relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] bg-black border-white/[0.2] w-[260px] h-[400px] rounded-xl p-6 border transition-all duration-300">
               
