@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeightLoss Coach AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: flex;
+            min-height: 600px;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-right: 1px solid #e9ecef;
+        }
+
+        .sidebar h3 {
+            margin-bottom: 20px;
+            color: #495057;
+            font-size: 1.2em;
+        }
+
+        .upload-section {
+            margin-bottom: 30px;
+        }
+
+        .upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .upload-area:hover {
+            border-color: #4facfe;
+            background: #f8f9ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #4facfe;
+            background: #e3f2fd;
+        }
+
+        .file-rename-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e9ecef;
+            display: none;
+        }
+
+        .file-rename-section.show {
+            display: block;
+        }
+
+        .rename-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .rename-input:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: transform 0.2s ease;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .documents-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .document-item {
+            background: white;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #4facfe;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .document-info {
+            flex: 1;
+        }
+
+        .document-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .btn-select {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-select:hover {
+            background: #218838;
+        }
+
+        .btn-select.selected {
+            background: #007bff;
+        }
+
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background: #c82333;
+        }
+
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            max-height: 400px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 18px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .message.agent {
+            background: white;
+            color: #495057;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .message-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .chat-input-area {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .chat-input:focus {
+            border-color: #4facfe;
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #cce7ff;
+            color: #004085;
+            border: 1px solid #b3d7ff;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #e9ecef;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .chat-messages {
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏃‍♂️ WeightLoss Coach AI</h1>
+            <p>Your AI-powered fitness and nutrition assistant</p>
+        </div>
+
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="upload-section">
+                    <h3>📄 Upload Documents</h3>
+                    <div class="upload-area" id="uploadArea">
+                        <div>
+                            <p>📎 Drop files here or click to browse</p>
+                            <p style="font-size: 12px; color: #6c757d; margin-top: 5px;">
+                                Supports: PDF, JPG, PNG, JPEG
+                            </p>
+                        </div>
+                        <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png" style="display: none;">
+                    </div>
+
+                    <div class="file-rename-section" id="fileRenameSection">
+                        <h4 style="margin-bottom: 10px; color: #495057;">Rename Files (Optional)</h4>
+                        <div id="renameInputs"></div>
+                    </div>
+
+                    <button class="upload-btn" id="uploadBtn" style="display: none;">Upload Files</button>
+                </div>
+
+                <div class="documents-section">
+                    <h3>📚 Your Documents</h3>
+                    <div id="documentsList" class="documents-list">
+                        <p style="color: #6c757d; font-style: italic;">No documents uploaded yet</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-section">
+                <div id="chatMessages" class="chat-messages">
+                    <div class="message agent">
+                        <div class="message-header">🤖 Coach AI</div>
+                        <div>Hello! I'm your AI weight loss coach. I can help you with personalized fitness plans, nutrition advice, and track your progress. Feel free to ask me anything about your health and fitness goals!</div>
+                    </div>
+                </div>
+
+                <div id="statusArea"></div>
+
+                <div class="chat-input-area">
+                    <input type="text" id="messageInput" class="chat-input"
+                           placeholder="Ask me about your fitness goals, upload documents, or ask for advice..."
+                           onkeypress="handleKeyPress(event)">
+                    <button id="sendBtn" class="send-btn" onclick="sendMessage()">
+                        <span id="sendText">Send</span>
+                        <span id="loadingSpinner" class="loading" style="display: none;"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let uploadedFiles = [];
+        let userId = 'user_' + Date.now(); // Generate unique user ID
+        let selectedDocuments = new Set(); // Track selected documents
+        let fileNames = {}; // Store custom file names
+
+        // DOM elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileRenameSection = document.getElementById('fileRenameSection');
+        const renameInputs = document.getElementById('renameInputs');
+        const documentsList = document.getElementById('documentsList');
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const sendText = document.getElementById('sendText');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const statusArea = document.getElementById('statusArea');
+
+        // Upload area event listeners
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            handleFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            uploadedFiles = files;
+            updateUploadUI();
+            createRenameInputs();
+
+            if (files.length > 0) {
+                fileRenameSection.classList.add('show');
+                uploadBtn.style.display = 'block';
+                showStatus(`Selected ${files.length} file(s) for upload`, 'info');
+            }
+        }
+
+        function updateUploadUI() {
+            if (uploadedFiles.length === 0) {
+                uploadArea.innerHTML = `
+                    <div>
+                        <p>📎 Drop files here or click to browse</p>
+                        <p style="font-size: 12px; color: #6c757d; margin-top: 5px;">
+                            Supports: PDF, JPG, PNG, JPEG
+                        </p>
+                    </div>
+                `;
+            } else {
+                const fileNames = uploadedFiles.map(f => f.name).join(', ');
+                uploadArea.innerHTML = `
+                    <div>
+                        <p>📄 Selected: ${fileNames}</p>
+                        <p style="font-size: 12px; color: #4facfe; margin-top: 5px;">
+                            Ready to upload
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        function createRenameInputs() {
+            renameInputs.innerHTML = '';
+            uploadedFiles.forEach((file, index) => {
+                const renameDiv = document.createElement('div');
+                renameDiv.innerHTML = `
+                    <label style="display: block; margin-bottom: 5px; font-size: 12px; color: #495057;">
+                        ${file.name}
+                    </label>
+                    <input type="text" class="rename-input" placeholder="Enter custom name (optional)"
+                           data-index="${index}" onchange="updateFileName(${index}, this.value)">
+                `;
+                renameInputs.appendChild(renameDiv);
+            });
+        }
+
+        function updateFileName(index, customName) {
+            if (customName.trim()) {
+                fileNames[index] = customName.trim();
+            } else {
+                delete fileNames[index];
+            }
+        }
+
+        function toggleDocumentSelection(docId, docIndex) {
+            if (selectedDocuments.has(docId)) {
+                selectedDocuments.delete(docId);
+                showStatus('Document deselected for analysis', 'info');
+            } else {
+                selectedDocuments.add(docId);
+                showStatus('Document selected for analysis', 'success');
+            }
+            loadUserDocuments(); // Refresh the display
+        }
+
+        async function uploadFiles() {
+            if (uploadedFiles.length === 0) return;
+
+            for (let i = 0; i < uploadedFiles.length; i++) {
+                await uploadFile(uploadedFiles[i], i);
+            }
+
+            uploadedFiles = [];
+            fileNames = {}; // Clear custom names
+            updateUploadUI();
+            fileRenameSection.classList.remove('show');
+            uploadBtn.style.display = 'none';
+            loadUserDocuments();
+        }
+
+        async function uploadFile(file, index) {
+            const formData = new FormData();
+            formData.append('user_id', userId);
+            formData.append('file', file);
+
+            // Add custom filename if provided
+            if (fileNames[index]) {
+                formData.append('custom_filename', fileNames[index]);
+            }
+
+            const displayName = fileNames[index] || file.name;
+
+            try {
+                showStatus(`Uploading ${displayName}...`, 'info');
+
+                const response = await fetch('/upload-document', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showStatus(`✅ ${displayName} processed and added to knowledge base`, 'success');
+                } else {
+                    showStatus(`❌ Failed to process ${displayName}: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Error uploading ${displayName}: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadUserDocuments() {
+            try {
+                const response = await fetch(`/user-documents/${userId}`);
+                const result = await response.json();
+
+                if (result.success && result.documents.length > 0) {
+                    documentsList.innerHTML = result.documents.map((doc, index) => {
+                        const docId = `doc_${index}_${Date.now()}`;
+                        const isSelected = selectedDocuments.has(docId);
+
+                        return `
+                            <div class="document-item">
+                                <div class="document-info">
+                                    <strong>${doc.file_name || 'Document'}</strong><br>
+                                    <small>Type: ${doc.doc_type || 'Unknown'} | Chunks: ${doc.total_chunks || 0}</small>
+                                </div>
+                                <div class="document-actions">
+                                    <button class="btn-small btn-select ${isSelected ? 'selected' : ''}"
+                                            onclick="toggleDocumentSelection('${docId}', ${index})">
+                                        ${isSelected ? 'Selected' : 'Select'}
+                                    </button>
+                                    <button class="btn-small btn-delete"
+                                            onclick="deleteDocument(${index})">
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    documentsList.innerHTML = '<p style="color: #6c757d; font-style: italic;">No documents uploaded yet</p>';
+                }
+            } catch (error) {
+                console.error('Error loading documents:', error);
+            }
+        }
+
+
+        async function deleteDocument(docIndex) {
+            if (!confirm('Are you sure you want to delete this document?')) {
+                return;
+            }
+
+            try {
+                showStatus('Deleting document...', 'info');
+
+                // Get document info first
+                const response = await fetch(`/user-documents/${userId}`);
+                const result = await response.json();
+
+                if (result.success && result.documents[docIndex]) {
+                    const doc = result.documents[docIndex];
+                    const documentId = `${userId}_${doc.file_name}_${docIndex}`;
+
+                    // Delete the document
+                    const deleteResponse = await fetch(`/user-documents/${userId}/${documentId}`, {
+                        method: 'DELETE'
+                    });
+
+                    const deleteResult = await deleteResponse.json();
+
+                    if (deleteResult.success) {
+                        showStatus('Document deleted successfully', 'success');
+                        loadUserDocuments(); // Refresh the list
+                    } else {
+                        showStatus('Failed to delete document', 'error');
+                    }
+                }
+            } catch (error) {
+                showStatus('Error deleting document', 'error');
+                console.error('Delete error:', error);
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            statusArea.appendChild(statusDiv);
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (statusDiv.parentNode) {
+                    statusDiv.remove();
+                }
+            }, 5000);
+        }
+
+        function addMessage(content, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            if (type === 'agent') {
+                messageDiv.innerHTML = `
+                    <div class="message-header">🤖 Coach AI</div>
+                    <div>${content}</div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="message-header">👤 You</div>
+                    <div>${content}</div>
+                `;
+            }
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Add user message
+            addMessage(message, 'user');
+            messageInput.value = '';
+
+            // Show loading state
+            sendBtn.disabled = true;
+            sendText.style.display = 'none';
+            loadingSpinner.style.display = 'inline-block';
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        message: message
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    addMessage(result.answer, 'agent');
+                } else {
+                    addMessage('❌ Sorry, I encountered an error. Please try again.', 'agent');
+                    console.error('Chat error:', result);
+                }
+            } catch (error) {
+                addMessage('❌ Network error. Please check your connection and try again.', 'agent');
+                console.error('Network error:', error);
+            } finally {
+                // Reset loading state
+                sendBtn.disabled = false;
+                sendText.style.display = 'inline';
+                loadingSpinner.style.display = 'none';
+            }
+        }
+
+        // Event listeners
+        uploadBtn.addEventListener('click', uploadFiles);
+
+        // Load documents on page load
+        document.addEventListener('DOMContentLoaded', loadUserDocuments);
+
+        // Focus on message input
+        messageInput.focus();
+    </script>
+</body>
+</html>
