@@ -58,15 +58,78 @@ class RetrievalService:
         if is_valid_uuid(person):
             return person
         
-        # PostgreSQL name resolution is disabled (psycopg2 not installed)
-        # To enable: pip install psycopg2-binary and uncomment the code below
-        
-        logger.warning(
-            "PostgreSQL name resolution unavailable - please provide patient_id directly",
-            person=person,
-            hint="Install psycopg2-binary to enable name resolution"
-        )
-        return None
+        # Search Qdrant for profile data matching the name
+        try:
+            from qdrant_client.models import Filter, FieldCondition, MatchValue
+            
+            # Scroll through profile records to find matching name
+            results = self.qdrant_manager.client.scroll(
+                collection_name=self.qdrant_manager.collection_name,
+                scroll_filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="source",
+                            match=MatchValue(value="profile")
+                        )
+                    ]
+                ),
+                limit=1000,  # Get up to 1000 profiles
+                with_payload=True,
+                with_vectors=False
+            )
+            
+            # Normalize search name for comparison
+            search_name = person.lower().strip()
+            
+            # Search through profile text for matching names
+            for point in results[0]:
+                payload = point.payload
+                text = payload.get("text", "").lower()
+                patient_id = payload.get("patient_id")
+                
+                # Check if the search name appears in the profile text
+                # Profile text format: "Profile for {full_name} (ID: {patient_id}):"
+                if f"profile for {search_name}" in text:
+                    logger.info(
+                        "Name resolved to patient_id",
+                        person=person,
+                        patient_id=patient_id
+                    )
+                    return patient_id
+                
+                # Also check if it's a partial match (first name or last name)
+                # Extract name from text: "Profile for {name} (ID:"
+                if "profile for " in text and " (id:" in text:
+                    start = text.find("profile for ") + len("profile for ")
+                    end = text.find(" (id:", start)
+                    if start < end:
+                        full_name = text[start:end].strip()
+                        # Check if search name matches any part of the full name
+                        name_parts = full_name.split()
+                        search_parts = search_name.split()
+                        
+                        # Match if any search part matches any name part
+                        if any(search_part in name_part or name_part in search_part 
+                               for search_part in search_parts 
+                               for name_part in name_parts):
+                            logger.info(
+                                "Name partially resolved to patient_id",
+                                person=person,
+                                matched_name=full_name,
+                                patient_id=patient_id
+                            )
+                            return patient_id
+            
+            logger.warning(
+                "Person not found in profile data",
+                person=person,
+                hint="Make sure profile data is ingested and name spelling is correct"
+            )
+            return None
+            
+        except Exception as e:
+            logger.error("Name resolution failed", person=person, error=str(e))
+            return None
         
         # === PostgreSQL name lookup code (disabled) ===
         # Uncomment this section after installing psycopg2-binary
