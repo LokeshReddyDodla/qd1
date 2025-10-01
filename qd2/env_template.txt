@@ -1,0 +1,57 @@
+# Copy this file to .env and fill in your values
+
+# =====================================================================
+# Qdrant Configuration
+# =====================================================================
+QDRANT_HOST=localhost
+QDRANT_PORT=6333
+QDRANT_COLLECTION_NAME=people_data
+QDRANT_VECTOR_SIZE=1536
+
+# =====================================================================
+# OpenAI Configuration
+# =====================================================================
+# Get your API key from: https://platform.openai.com/api-keys
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Embedding model options:
+# - text-embedding-3-small (1536 dims, cheaper)
+# - text-embedding-3-large (3072 dims, better quality)
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+
+# LLM model for answer generation:
+# - gpt-4o-mini (fast, cheap)
+# - gpt-4o (better reasoning)
+OPENAI_LLM_MODEL=gpt-4o-mini
+OPENAI_LLM_TEMPERATURE=0.1
+OPENAI_LLM_MAX_TOKENS=1000
+
+# =====================================================================
+# PostgreSQL Configuration (Patients)
+# =====================================================================
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=patient_db
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+
+# =====================================================================
+# MongoDB Configuration (Health Data)
+# =====================================================================
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB=patient_data
+
+# =====================================================================
+# Application Configuration
+# =====================================================================
+LOG_LEVEL=INFO
+ENVIRONMENT=development
+
+# Batch processing
+EMBEDDING_BATCH_SIZE=64
+INGEST_BATCH_SIZE=100
+
+# Retrieval
+DEFAULT_TOP_K=10
+MAX_TOP_K=50
+

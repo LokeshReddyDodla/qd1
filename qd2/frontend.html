@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Data RAG System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            background: #f8f9fa;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+
+        .status-item.healthy {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-item.unhealthy {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: #666;
+            font-size: 1em;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            min-height: 150px;
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .response-box {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .response-box.success {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+
+        .response-box.error {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .evidence-item {
+            background: white;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+
+        .evidence-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .evidence-score {
+            background: #667eea;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: bold;
+        }
+
+        .evidence-text {
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .answer-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 1.05em;
+            line-height: 1.8;
+        }
+
+        .answer-box strong {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .answer-box div {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .answer-box div strong {
+            color: #ffd700;
+            font-size: 1.05em;
+        }
+
+        .metadata-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+
+        .metadata-item {
+            margin-bottom: 5px;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .example-btn {
+            background: #17a2b8;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            margin-top: 10px;
+            display: inline-block;
+        }
+
+        .example-btn:hover {
+            background: #138496;
+        }
+
+        .filter-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .filter-group {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🏥 Patient Data RAG System</h1>
+            <p class="subtitle">Retrieval-Augmented Generation over Patient Health Data</p>
+            <div class="status-bar" id="statusBar">
+                <div class="status-item">⏳ Loading...</div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Left Column: Ingestion -->
+            <div class="card">
+                <h2>📥 Data Ingestion</h2>
+                
+                <div class="tabs">
+                    <button class="tab active" onclick="switchIngestTab('profile')">Profile</button>
+                    <button class="tab" onclick="switchIngestTab('meals')">Meals</button>
+                    <button class="tab" onclick="switchIngestTab('fitness')">Fitness</button>
+                    <button class="tab" onclick="switchIngestTab('sleep')">Sleep</button>
+                </div>
+
+                <!-- Profile Tab -->
+                <div id="ingest-profile" class="tab-content active">
+                    <div class="info-box">
+                        📝 Ingest patient profiles from PostgreSQL. Send JSON array of patient objects.
+                    </div>
+                    <div class="form-group">
+                        <label>Patient Data (JSON Array)</label>
+                        <textarea id="profileData" placeholder='[{"patient_id": "...", "first_name": "John", "last_name": "Doe", ...}]'></textarea>
+                    </div>
+                    <button class="example-btn" onclick="fillProfileExample()">Load Example</button>
+                    <div class="button-group">
+                        <button class="btn-primary" onclick="ingestData('profile')">Ingest Profiles</button>
+                    </div>
+                </div>
+
+                <!-- Meals Tab -->
+                <div id="ingest-meals" class="tab-content">
+                    <div class="info-box">
+                        🍽️ Ingest daily meal reports. Creates summary, individual meals, and recommendations.
+                    </div>
+                    <div class="form-group">
+                        <label>Meal Data (JSON Array)</label>
+                        <textarea id="mealsData" placeholder='[{"patient_id": "...", "date": "2025-09-30", "meals": [...], ...}]'></textarea>
+                    </div>
+                    <button class="example-btn" onclick="fillMealsExample()">Load Example</button>
+                    <div class="button-group">
+                        <button class="btn-primary" onclick="ingestData('meals')">Ingest Meals</button>
+                    </div>
+                </div>
+
+                <!-- Fitness Tab -->
+                <div id="ingest-fitness" class="tab-content">
+                    <div class="info-box">
+                        🏃 Ingest fitness reports (daily/weekly/monthly). Creates summary chunks.
+                    </div>
+                    <div class="form-group">
+                        <label>Fitness Data (JSON Array)</label>
+                        <textarea id="fitnessData" placeholder='[{"patient_id": "...", "report_type": "daily", "steps": 8000, ...}]'></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="includeHourly" style="width: auto;">
+                            Include hourly chunks (increases index size)
+                        </label>
+                    </div>
+                    <button class="example-btn" onclick="fillFitnessExample()">Load Example</button>
+                    <div class="button-group">
+                        <button class="btn-primary" onclick="ingestData('fitness')">Ingest Fitness</button>
+                    </div>
+                </div>
+
+                <!-- Sleep Tab -->
+                <div id="ingest-sleep" class="tab-content">
+                    <div class="info-box">
+                        😴 Ingest sleep reports (daily/weekly/monthly). Creates summary chunks.
+                    </div>
+                    <div class="form-group">
+                        <label>Sleep Data (JSON Array)</label>
+                        <textarea id="sleepData" placeholder='[{"patient_id": "...", "report_type": "daily", "quality_analysis": {...}, ...}]'></textarea>
+                    </div>
+                    <button class="example-btn" onclick="fillSleepExample()">Load Example</button>
+                    <div class="button-group">
+                        <button class="btn-primary" onclick="ingestData('sleep')">Ingest Sleep</button>
+                    </div>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="ingestLoading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Processing...</p>
+                </div>
+
+                <!-- Response Box -->
+                <div id="ingestResponse" class="response-box" style="display: none;"></div>
+            </div>
+
+            <!-- Right Column: Query -->
+            <div class="card">
+                <h2>🔍 Query System</h2>
+                
+                <div class="info-box">
+                    💬 Ask natural language questions about patient data with optional filters.
+                    <br><strong>Tip:</strong> Leave "Person" empty to query across all patients!
+                </div>
+
+                <div class="form-group">
+                    <label>Person Name or Patient ID <span style="color: #999; font-size: 0.9em;">(optional - leave empty for cross-patient queries)</span></label>
+                    <input type="text" id="queryPerson" placeholder="e.g., Raju Kumar or UUID (or leave empty for all patients)">
+                </div>
+
+                <div class="form-group full-width">
+                    <label>Question</label>
+                    <textarea id="queryQuestion" style="min-height: 80px;" placeholder="e.g., Who ate high carb meals in August? OR What did this patient eat for breakfast on May 2nd, 2025?"></textarea>
+                </div>
+
+                <div class="filter-group">
+                    <div class="form-group">
+                        <label>Source Filter (optional)</label>
+                        <select id="querySource">
+                            <option value="">All Sources</option>
+                            <option value="profile">Profile</option>
+                            <option value="meals">Meals</option>
+                            <option value="fitness">Fitness</option>
+                            <option value="sleep">Sleep</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Results Limit</label>
+                        <input type="number" id="queryTopK" value="10" min="1" max="50">
+                    </div>
+
+                    <div class="form-group">
+                        <label>From Date/Time (optional)</label>
+                        <input type="datetime-local" id="queryFrom">
+                    </div>
+
+                    <div class="form-group">
+                        <label>To Date/Time (optional)</label>
+                        <input type="datetime-local" id="queryTo">
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="example-btn" onclick="fillQueryExample()">Load Example Query</button>
+                    <button class="btn-primary" onclick="executeQuery()">Execute Query</button>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="queryLoading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Searching and generating answer...</p>
+                </div>
+
+                <!-- Query Response -->
+                <div id="queryResponse" style="display: none;">
+                    <div id="answerBox" class="answer-box"></div>
+                    
+                    <h3 style="color: #667eea; margin-bottom: 15px;">📚 Evidence</h3>
+                    <div id="evidenceBox"></div>
+                    
+                    <div id="metadataBox" class="metadata-box"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Full Width: Collection Info -->
+        <div class="card" style="margin-top: 30px;">
+            <h2>📊 Collection Statistics</h2>
+            <div id="collectionInfo" class="code-block">Loading...</div>
+            <button class="btn-secondary" style="margin-top: 15px;" onclick="loadCollectionInfo()">Refresh</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:1531';
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            checkHealth();
+            loadCollectionInfo();
+        });
+
+        // Health Check
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                const statusBar = document.getElementById('statusBar');
+                if (data.status === 'healthy') {
+                    statusBar.innerHTML = `
+                        <div class="status-item healthy">✅ System Healthy</div>
+                        <div class="status-item">📊 Collection: ${data.qdrant.collection}</div>
+                        <div class="status-item">📈 Points: ${data.qdrant.points_count}</div>
+                    `;
+                } else {
+                    statusBar.innerHTML = '<div class="status-item unhealthy">❌ System Unhealthy</div>';
+                }
+            } catch (error) {
+                document.getElementById('statusBar').innerHTML = 
+                    '<div class="status-item unhealthy">❌ Cannot connect to API</div>';
+            }
+        }
+
+        // Load Collection Info
+        async function loadCollectionInfo() {
+            try {
+                const response = await fetch(`${API_BASE}/collection/info`);
+                const data = await response.json();
+                document.getElementById('collectionInfo').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('collectionInfo').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Switch Ingest Tabs
+        function switchIngestTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tabs .tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`ingest-${tabName}`).classList.add('active');
+
+            // Clear responses
+            document.getElementById('ingestResponse').style.display = 'none';
+        }
+
+        // Ingest Data
+        async function ingestData(source) {
+            const dataMap = {
+                'profile': 'profileData',
+                'meals': 'mealsData',
+                'fitness': 'fitnessData',
+                'sleep': 'sleepData'
+            };
+
+            const textareaId = dataMap[source];
+            const data = document.getElementById(textareaId).value.trim();
+
+            if (!data) {
+                alert('Please enter data to ingest');
+                return;
+            }
+
+            try {
+                const jsonData = JSON.parse(data);
+                
+                // Show loading
+                document.getElementById('ingestLoading').classList.add('active');
+                document.getElementById('ingestResponse').style.display = 'none';
+
+                // Build URL
+                let url = `${API_BASE}/ingest/${source}`;
+                if (source === 'fitness') {
+                    const includeHourly = document.getElementById('includeHourly').checked;
+                    url += `?include_hourly=${includeHourly}`;
+                }
+
+                // Make request
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(jsonData)
+                });
+
+                const result = await response.json();
+
+                // Hide loading
+                document.getElementById('ingestLoading').classList.remove('active');
+
+                // Show response
+                const responseBox = document.getElementById('ingestResponse');
+                responseBox.style.display = 'block';
+                responseBox.className = 'response-box ' + (response.ok ? 'success' : 'error');
+                responseBox.innerHTML = `
+                    <h3>${response.ok ? '✅ Success' : '❌ Error'}</h3>
+                    <pre style="white-space: pre-wrap; margin-top: 15px;">${JSON.stringify(result, null, 2)}</pre>
+                `;
+
+                // Refresh health
+                if (response.ok) {
+                    setTimeout(checkHealth, 1000);
+                }
+
+            } catch (error) {
+                document.getElementById('ingestLoading').classList.remove('active');
+                const responseBox = document.getElementById('ingestResponse');
+                responseBox.style.display = 'block';
+                responseBox.className = 'response-box error';
+                responseBox.innerHTML = `<h3>❌ Error</h3><p>${error.message}</p>`;
+            }
+        }
+
+        // Format answer text with proper styling
+        function formatAnswer(text) {
+            if (!text) return '';
+            
+            // Convert markdown-style formatting to HTML
+            let formatted = text
+                // Convert **bold** to <strong>
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                // Convert line breaks to <br>
+                .replace(/\n/g, '<br>')
+                // Convert numbered lists (1. 2. 3.) to proper list items
+                .replace(/(\d+\.\s+\*\*.*?\*\*)/g, '<div style="margin-top: 15px; margin-bottom: 5px;">$1</div>')
+                // Add indentation for sub-items (starting with -)
+                .replace(/<br>\s*-\s+/g, '<br>&nbsp;&nbsp;&nbsp;&nbsp;• ');
+            
+            return formatted;
+        }
+
+        // Execute Query
+        async function executeQuery() {
+            const person = document.getElementById('queryPerson').value.trim();
+            const question = document.getElementById('queryQuestion').value.trim();
+
+            if (!question) {
+                alert('Please enter a question');
+                return;
+            }
+
+            const queryData = {
+                question: question,
+                top_k: parseInt(document.getElementById('queryTopK').value)
+            };
+
+            // Add person only if provided (optional for cross-patient queries)
+            if (person) {
+                queryData.person = person;
+            }
+
+            // Add optional filters
+            const source = document.getElementById('querySource').value;
+            if (source) queryData.source = source;
+
+            const fromDate = document.getElementById('queryFrom').value;
+            if (fromDate) queryData.from = new Date(fromDate).toISOString();
+
+            const toDate = document.getElementById('queryTo').value;
+            if (toDate) queryData.to = new Date(toDate).toISOString();
+
+            try {
+                // Show loading
+                document.getElementById('queryLoading').classList.add('active');
+                document.getElementById('queryResponse').style.display = 'none';
+
+                // Make request
+                const response = await fetch(`${API_BASE}/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(queryData)
+                });
+
+                const result = await response.json();
+
+                // Hide loading
+                document.getElementById('queryLoading').classList.remove('active');
+
+                if (response.ok) {
+                    // Display answer with proper formatting
+                    document.getElementById('answerBox').innerHTML = `
+                        <strong>Answer:</strong><br><br>
+                        <div style="line-height: 1.8;">${formatAnswer(result.answer)}</div>
+                    `;
+
+                    // Display evidence
+                    const evidenceBox = document.getElementById('evidenceBox');
+                    if (result.evidence && result.evidence.length > 0) {
+                        evidenceBox.innerHTML = result.evidence.map((item, idx) => `
+                            <div class="evidence-item">
+                                <div class="evidence-header">
+                                    <span><strong>Evidence ${idx + 1}</strong> - ${item.payload.source} | ${item.payload.date || 'N/A'} | ${item.payload.section}</span>
+                                    <span class="evidence-score">${(item.score * 100).toFixed(1)}%</span>
+                                </div>
+                                <div class="evidence-text">${item.text}</div>
+                            </div>
+                        `).join('');
+                    } else {
+                        evidenceBox.innerHTML = '<p>No evidence found.</p>';
+                    }
+
+                    // Display metadata
+                    document.getElementById('metadataBox').innerHTML = `
+                        <strong>Query Metadata:</strong>
+                        <pre style="margin-top: 10px;">${JSON.stringify(result.query_metadata, null, 2)}</pre>
+                    `;
+
+                    document.getElementById('queryResponse').style.display = 'block';
+                } else {
+                    alert(`Query failed: ${result.detail || 'Unknown error'}`);
+                }
+
+            } catch (error) {
+                document.getElementById('queryLoading').classList.remove('active');
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // Example Data Functions
+        function fillProfileExample() {
+            document.getElementById('profileData').value = JSON.stringify([
+                {
+                    "patient_id": "12345678-1234-1234-1234-123456789abc",
+                    "first_name": "John",
+                    "last_name": "Doe",
+                    "dob": "1980-01-15",
+                    "gender": "male",
+                    "height": 178.0,
+                    "waist": 90,
+                    "weight": 82,
+                    "email": "john.doe@example.com",
+                    "phone_number": "1234567890",
+                    "locale": "Asia/Kolkata",
+                    "created_at": "2025-09-30T10:00:00Z",
+                    "profile_completion": {
+                        "basic": {"is_complete": true},
+                        "lifestyle": {"is_complete": true},
+                        "medical_history": {"is_complete": false}
+                    }
+                }
+            ], null, 2);
+        }
+
+        function fillMealsExample() {
+            document.getElementById('mealsData').value = JSON.stringify([
+                {
+                    "patient_id": "12345678-1234-1234-1234-123456789abc",
+                    "report_type": "daily",
+                    "date": "2025-09-30",
+                    "meal_count": 2,
+                    "calories": 1200,
+                    "proteins": 60,
+                    "carbohydrates": 140,
+                    "fats": 40,
+                    "fiber": 20,
+                    "meals": [
+                        {
+                            "id": "breakfast-001",
+                            "name": "Breakfast",
+                            "time": "08:00:00",
+                            "items": [
+                                {"name": "Scrambled Eggs", "quantity": "2 eggs"},
+                                {"name": "Toast", "quantity": "2 slices"}
+                            ],
+                            "total_macro_nutritional_value": {
+                                "calories": 450,
+                                "proteins": 25,
+                                "carbohydrates": 40,
+                                "fats": 18,
+                                "fiber": 6
+                            }
+                        }
+                    ]
+                }
+            ], null, 2);
+        }
+
+        function fillFitnessExample() {
+            document.getElementById('fitnessData').value = JSON.stringify([
+                {
+                    "patient_id": "12345678-1234-1234-1234-123456789abc",
+                    "report_type": "daily",
+                    "start_date": "2025-09-30T00:00:00Z",
+                    "end_date": "2025-09-30T23:59:59Z",
+                    "steps": 8500,
+                    "active_duration": 95,
+                    "peak_activity_time": {
+                        "hour": "2025-09-30 18:00:00",
+                        "max_steps": 1200
+                    }
+                }
+            ], null, 2);
+        }
+
+        function fillSleepExample() {
+            document.getElementById('sleepData').value = JSON.stringify([
+                {
+                    "patient_id": "12345678-1234-1234-1234-123456789abc",
+                    "report_type": "daily",
+                    "start_date": "2025-09-30T00:00:00Z",
+                    "end_date": "2025-09-30T23:59:59Z",
+                    "quality_analysis": {
+                        "sleep_quality": "good",
+                        "deep_sleep_percentage": 22,
+                        "rem_sleep_percentage": 25,
+                        "awake_time_percentage": 5
+                    }
+                }
+            ], null, 2);
+        }
+
+        function fillQueryExample() {
+            document.getElementById('queryPerson').value = 'John Doe';
+            document.getElementById('queryQuestion').value = 'What did John eat for breakfast today?';
+            document.getElementById('querySource').value = 'meals';
+            
+            // Set today's date range
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            document.getElementById('queryFrom').value = `${todayStr}T00:00`;
+            document.getElementById('queryTo').value = `${todayStr}T23:59`;
+        }
+    </script>
+</body>
+</html>
