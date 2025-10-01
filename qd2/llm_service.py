@@ -61,10 +61,12 @@ CRITICAL RULES:
 5. Be concise and precise
 6. If evidence shows conflicting data, acknowledge it
 7. Never make up information not present in the evidence
+8. IMPORTANT: Look for phrases like "No meals logged", "No data", "not recorded" - these indicate absence of data
 
 FORMATTING INSTRUCTIONS:
 - When listing patients, ALWAYS include their **patient_id** (the UUID shown in evidence)
-- Use **bold** for important items (e.g., **Patient ID**, **Item Name**)
+- When listing names, extract them from the profile text (e.g., "Profile for John Doe" → name is "John Doe")
+- Use **bold** for important items (e.g., **Patient ID**, **Name**, **Item Name**)
 - Use numbered lists (1. 2. 3.) for multiple items or patients
 - Add a line break between each list item
 - Use sub-bullets with "- " for details under each item
