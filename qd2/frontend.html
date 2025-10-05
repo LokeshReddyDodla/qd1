@@ -332,6 +332,70 @@
             font-size: 0.9em;
         }
 
+        .file-upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+
+        .file-upload-area:hover {
+            background: #e9ecef;
+            border-color: #5568d3;
+        }
+
+        .file-upload-area.dragover {
+            background: #d4edff;
+            border-color: #667eea;
+        }
+
+        .file-upload-input {
+            display: none;
+        }
+
+        .file-selected {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            color: #155724;
+        }
+
+        .upload-method-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .upload-method-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            background: #f8f9fa;
+            color: #666;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .upload-method-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .upload-method-content {
+            display: none;
+        }
+
+        .upload-method-content.active {
+            display: block;
+        }
+
         .info-box {
             background: #d1ecf1;
             border: 1px solid #bee5eb;
@@ -394,71 +458,243 @@
                     <button class="tab" onclick="switchIngestTab('meals')">Meals</button>
                     <button class="tab" onclick="switchIngestTab('fitness')">Fitness</button>
                     <button class="tab" onclick="switchIngestTab('sleep')">Sleep</button>
+                    <button class="tab" onclick="switchIngestTab('cgm')">CGM</button>
                 </div>
 
                 <!-- Profile Tab -->
                 <div id="ingest-profile" class="tab-content active">
                     <div class="info-box">
-                        📝 Ingest patient profiles from PostgreSQL. Send JSON array of patient objects.
+                        📝 Ingest patient profiles. Choose between pasting JSON or uploading a file.
                     </div>
-                    <div class="form-group">
-                        <label>Patient Data (JSON Array)</label>
-                        <textarea id="profileData" placeholder='[{"patient_id": "...", "first_name": "John", "last_name": "Doe", ...}]'></textarea>
+                    
+                    <!-- Upload Method Toggle -->
+                    <div class="upload-method-toggle">
+                        <button class="upload-method-btn active" onclick="toggleUploadMethod('profile', 'json')">
+                            📝 Paste JSON
+                        </button>
+                        <button class="upload-method-btn" onclick="toggleUploadMethod('profile', 'file')">
+                            📁 Upload File
+                        </button>
                     </div>
-                    <button class="example-btn" onclick="fillProfileExample()">Load Example</button>
-                    <div class="button-group">
-                        <button class="btn-primary" onclick="ingestData('profile')">Ingest Profiles</button>
+                    
+                    <!-- JSON Paste Method -->
+                    <div id="profile-json-method" class="upload-method-content active">
+                        <div class="form-group">
+                            <label>Patient Data (JSON Array)</label>
+                            <textarea id="profileData" placeholder='[{"patient_id": "...", "first_name": "John", "last_name": "Doe", ...}]'></textarea>
+                        </div>
+                        <button class="example-btn" onclick="fillProfileExample()">Load Example</button>
+                        <div class="button-group">
+                            <button class="btn-primary" onclick="ingestData('profile')">Ingest Profiles</button>
+                        </div>
+                    </div>
+                    
+                    <!-- File Upload Method -->
+                    <div id="profile-file-method" class="upload-method-content">
+                        <div class="file-upload-area" onclick="document.getElementById('profileFileInput').click()" 
+                             ondragover="handleDragOver(event)" ondrop="handleFileDrop(event, 'profile')">
+                            <input type="file" id="profileFileInput" class="file-upload-input" accept=".json" 
+                                   onchange="handleFileSelect(event, 'profile')">
+                            <p style="font-size: 1.2em; margin-bottom: 10px;">📁 Drag & Drop JSON File Here</p>
+                            <p style="color: #666;">or click to browse</p>
+                        </div>
+                        <div id="profile-file-selected" class="file-selected" style="display: none;"></div>
+                        <div class="button-group">
+                            <button class="btn-primary" onclick="uploadFile('profile')">Upload & Ingest</button>
+                            <button class="btn-secondary" onclick="clearFileSelection('profile')">Clear</button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Meals Tab -->
                 <div id="ingest-meals" class="tab-content">
                     <div class="info-box">
-                        🍽️ Ingest daily meal reports. Creates summary, individual meals, and recommendations.
+                        🍽️ Ingest daily meal reports. Choose between pasting JSON or uploading a file.
                     </div>
-                    <div class="form-group">
-                        <label>Meal Data (JSON Array)</label>
-                        <textarea id="mealsData" placeholder='[{"patient_id": "...", "date": "2025-09-30", "meals": [...], ...}]'></textarea>
+                    
+                    <!-- Upload Method Toggle -->
+                    <div class="upload-method-toggle">
+                        <button class="upload-method-btn active" onclick="toggleUploadMethod('meals', 'json')">
+                            📝 Paste JSON
+                        </button>
+                        <button class="upload-method-btn" onclick="toggleUploadMethod('meals', 'file')">
+                            📁 Upload File
+                        </button>
                     </div>
-                    <button class="example-btn" onclick="fillMealsExample()">Load Example</button>
-                    <div class="button-group">
-                        <button class="btn-primary" onclick="ingestData('meals')">Ingest Meals</button>
+                    
+                    <!-- JSON Paste Method -->
+                    <div id="meals-json-method" class="upload-method-content active">
+                        <div class="form-group">
+                            <label>Meal Data (JSON Array)</label>
+                            <textarea id="mealsData" placeholder='[{"patient_id": "...", "date": "2025-09-30", "meals": [...], ...}]'></textarea>
+                        </div>
+                        <button class="example-btn" onclick="fillMealsExample()">Load Example</button>
+                        <div class="button-group">
+                            <button class="btn-primary" onclick="ingestData('meals')">Ingest Meals</button>
+                        </div>
+                    </div>
+                    
+                    <!-- File Upload Method -->
+                    <div id="meals-file-method" class="upload-method-content">
+                        <div class="file-upload-area" onclick="document.getElementById('mealsFileInput').click()" 
+                             ondragover="handleDragOver(event)" ondrop="handleFileDrop(event, 'meals')">
+                            <input type="file" id="mealsFileInput" class="file-upload-input" accept=".json" 
+                                   onchange="handleFileSelect(event, 'meals')">
+                            <p style="font-size: 1.2em; margin-bottom: 10px;">📁 Drag & Drop JSON File Here</p>
+                            <p style="color: #666;">or click to browse</p>
+                        </div>
+                        <div id="meals-file-selected" class="file-selected" style="display: none;"></div>
+                        <div class="button-group">
+                            <button class="btn-primary" onclick="uploadFile('meals')">Upload & Ingest</button>
+                            <button class="btn-secondary" onclick="clearFileSelection('meals')">Clear</button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Fitness Tab -->
                 <div id="ingest-fitness" class="tab-content">
                     <div class="info-box">
-                        🏃 Ingest fitness reports (daily/weekly/monthly). Creates summary chunks.
+                        🏃 Ingest fitness reports (daily/weekly/monthly). Choose between pasting JSON or uploading a file.
                     </div>
-                    <div class="form-group">
-                        <label>Fitness Data (JSON Array)</label>
-                        <textarea id="fitnessData" placeholder='[{"patient_id": "...", "report_type": "daily", "steps": 8000, ...}]'></textarea>
+                    
+                    <!-- Upload Method Toggle -->
+                    <div class="upload-method-toggle">
+                        <button class="upload-method-btn active" onclick="toggleUploadMethod('fitness', 'json')">
+                            📝 Paste JSON
+                        </button>
+                        <button class="upload-method-btn" onclick="toggleUploadMethod('fitness', 'file')">
+                            📁 Upload File
+                        </button>
                     </div>
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="includeHourly" style="width: auto;">
-                            Include hourly chunks (increases index size)
-                        </label>
+                    
+                    <!-- JSON Paste Method -->
+                    <div id="fitness-json-method" class="upload-method-content active">
+                        <div class="form-group">
+                            <label>Fitness Data (JSON Array)</label>
+                            <textarea id="fitnessData" placeholder='[{"patient_id": "...", "report_type": "daily", "steps": 8000, ...}]'></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="includeHourly" style="width: auto;">
+                                Include hourly chunks (increases index size)
+                            </label>
+                        </div>
+                        <button class="example-btn" onclick="fillFitnessExample()">Load Example</button>
+                        <div class="button-group">
+                            <button class="btn-primary" onclick="ingestData('fitness')">Ingest Fitness</button>
+                        </div>
                     </div>
-                    <button class="example-btn" onclick="fillFitnessExample()">Load Example</button>
-                    <div class="button-group">
-                        <button class="btn-primary" onclick="ingestData('fitness')">Ingest Fitness</button>
+                    
+                    <!-- File Upload Method -->
+                    <div id="fitness-file-method" class="upload-method-content">
+                        <div class="file-upload-area" onclick="document.getElementById('fitnessFileInput').click()" 
+                             ondragover="handleDragOver(event)" ondrop="handleFileDrop(event, 'fitness')">
+                            <input type="file" id="fitnessFileInput" class="file-upload-input" accept=".json" 
+                                   onchange="handleFileSelect(event, 'fitness')">
+                            <p style="font-size: 1.2em; margin-bottom: 10px;">📁 Drag & Drop JSON File Here</p>
+                            <p style="color: #666;">or click to browse</p>
+                        </div>
+                        <div id="fitness-file-selected" class="file-selected" style="display: none;"></div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="includeHourlyFile" style="width: auto;">
+                                Include hourly chunks (increases index size)
+                            </label>
+                        </div>
+                        <div class="button-group">
+                            <button class="btn-primary" onclick="uploadFile('fitness')">Upload & Ingest</button>
+                            <button class="btn-secondary" onclick="clearFileSelection('fitness')">Clear</button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Sleep Tab -->
                 <div id="ingest-sleep" class="tab-content">
                     <div class="info-box">
-                        😴 Ingest sleep reports (daily/weekly/monthly). Creates summary chunks.
+                        😴 Ingest sleep reports (daily/weekly/monthly). Choose between pasting JSON or uploading a file.
                     </div>
-                    <div class="form-group">
-                        <label>Sleep Data (JSON Array)</label>
-                        <textarea id="sleepData" placeholder='[{"patient_id": "...", "report_type": "daily", "quality_analysis": {...}, ...}]'></textarea>
+                    
+                    <!-- Upload Method Toggle -->
+                    <div class="upload-method-toggle">
+                        <button class="upload-method-btn active" onclick="toggleUploadMethod('sleep', 'json')">
+                            📝 Paste JSON
+                        </button>
+                        <button class="upload-method-btn" onclick="toggleUploadMethod('sleep', 'file')">
+                            📁 Upload File
+                        </button>
                     </div>
-                    <button class="example-btn" onclick="fillSleepExample()">Load Example</button>
-                    <div class="button-group">
-                        <button class="btn-primary" onclick="ingestData('sleep')">Ingest Sleep</button>
+                    
+                    <!-- JSON Paste Method -->
+                    <div id="sleep-json-method" class="upload-method-content active">
+                        <div class="form-group">
+                            <label>Sleep Data (JSON Array)</label>
+                            <textarea id="sleepData" placeholder='[{"patient_id": "...", "report_type": "daily", "quality_analysis": {...}, ...}]'></textarea>
+                        </div>
+                        <button class="example-btn" onclick="fillSleepExample()">Load Example</button>
+                        <div class="button-group">
+                            <button class="btn-primary" onclick="ingestData('sleep')">Ingest Sleep</button>
+                        </div>
+                    </div>
+                    
+                    <!-- File Upload Method -->
+                    <div id="sleep-file-method" class="upload-method-content">
+                        <div class="file-upload-area" onclick="document.getElementById('sleepFileInput').click()" 
+                             ondragover="handleDragOver(event)" ondrop="handleFileDrop(event, 'sleep')">
+                            <input type="file" id="sleepFileInput" class="file-upload-input" accept=".json" 
+                                   onchange="handleFileSelect(event, 'sleep')">
+                            <p style="font-size: 1.2em; margin-bottom: 10px;">📁 Drag & Drop JSON File Here</p>
+                            <p style="color: #666;">or click to browse</p>
+                        </div>
+                        <div id="sleep-file-selected" class="file-selected" style="display: none;"></div>
+                        <div class="button-group">
+                            <button class="btn-primary" onclick="uploadFile('sleep')">Upload & Ingest</button>
+                            <button class="btn-secondary" onclick="clearFileSelection('sleep')">Clear</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CGM Tab -->
+                <div id="ingest-cgm" class="tab-content">
+                    <div class="info-box">
+                        🩸 Ingest CGM (Continuous Glucose Monitoring) reports. Supports daily, weekly, monthly, and custom period reports.
+                    </div>
+                    
+                    <!-- Upload Method Toggle -->
+                    <div class="upload-method-toggle">
+                        <button class="upload-method-btn active" onclick="toggleUploadMethod('cgm', 'json')">
+                            📝 Paste JSON
+                        </button>
+                        <button class="upload-method-btn" onclick="toggleUploadMethod('cgm', 'file')">
+                            📁 Upload File
+                        </button>
+                    </div>
+                    
+                    <!-- JSON Paste Method -->
+                    <div id="cgm-json-method" class="upload-method-content active">
+                        <div class="form-group">
+                            <label>CGM Data (JSON Array)</label>
+                            <textarea id="cgmData" placeholder='[{"patient_id": "...", "report_type": "daily", "report_date": "2025-08-05", "range_stats": {...}, ...}]'></textarea>
+                        </div>
+                        <button class="example-btn" onclick="fillCgmExample()">Load Example</button>
+                        <div class="button-group">
+                            <button class="btn-primary" onclick="ingestData('cgm')">Ingest CGM</button>
+                        </div>
+                    </div>
+                    
+                    <!-- File Upload Method -->
+                    <div id="cgm-file-method" class="upload-method-content">
+                        <div class="file-upload-area" onclick="document.getElementById('cgmFileInput').click()" 
+                             ondragover="handleDragOver(event)" ondrop="handleFileDrop(event, 'cgm')">
+                            <input type="file" id="cgmFileInput" class="file-upload-input" accept=".json" 
+                                   onchange="handleFileSelect(event, 'cgm')">
+                            <p style="font-size: 1.2em; margin-bottom: 10px;">📁 Drag & Drop JSON File Here</p>
+                            <p style="color: #666;">or click to browse</p>
+                        </div>
+                        <div id="cgm-file-selected" class="file-selected" style="display: none;"></div>
+                        <div class="button-group">
+                            <button class="btn-primary" onclick="uploadFile('cgm')">Upload & Ingest</button>
+                            <button class="btn-secondary" onclick="clearFileSelection('cgm')">Clear</button>
+                        </div>
                     </div>
                 </div>
 
@@ -500,6 +736,7 @@
                             <option value="meals">Meals</option>
                             <option value="fitness">Fitness</option>
                             <option value="sleep">Sleep</option>
+                            <option value="cgm">CGM</option>
                         </select>
                     </div>
 
@@ -616,7 +853,8 @@
                 'profile': 'profileData',
                 'meals': 'mealsData',
                 'fitness': 'fitnessData',
-                'sleep': 'sleepData'
+                'sleep': 'sleepData',
+                'cgm': 'cgmData'
             };
 
             const textareaId = dataMap[source];
@@ -677,6 +915,153 @@
                 responseBox.innerHTML = `<h3>❌ Error</h3><p>${error.message}</p>`;
             }
         }
+
+        // ============================================================================
+        // File Upload Functions
+        // ============================================================================
+
+        // Store selected files globally
+        const selectedFiles = {
+            profile: null,
+            meals: null,
+            fitness: null,
+            sleep: null,
+            cgm: null
+        };
+
+        // Toggle between JSON paste and file upload
+        function toggleUploadMethod(source, method) {
+            // Update button states
+            const buttons = document.querySelectorAll(`#ingest-${source} .upload-method-btn`);
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Show/hide content
+            document.getElementById(`${source}-json-method`).classList.remove('active');
+            document.getElementById(`${source}-file-method`).classList.remove('active');
+            
+            if (method === 'json') {
+                document.getElementById(`${source}-json-method`).classList.add('active');
+            } else {
+                document.getElementById(`${source}-file-method`).classList.add('active');
+            }
+        }
+
+        // Handle drag over
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.target.closest('.file-upload-area').classList.add('dragover');
+        }
+
+        // Handle file drop
+        function handleFileDrop(event, source) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.target.closest('.file-upload-area').classList.remove('dragover');
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type === 'application/json' || file.name.endsWith('.json')) {
+                    selectedFiles[source] = file;
+                    showFileSelected(source, file.name);
+                } else {
+                    alert('Please drop a JSON file');
+                }
+            }
+        }
+
+        // Handle file selection from input
+        function handleFileSelect(event, source) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                const file = files[0];
+                selectedFiles[source] = file;
+                showFileSelected(source, file.name);
+            }
+        }
+
+        // Show file selected message
+        function showFileSelected(source, filename) {
+            const selectedDiv = document.getElementById(`${source}-file-selected`);
+            selectedDiv.style.display = 'block';
+            selectedDiv.innerHTML = `✅ Selected: <strong>${filename}</strong>`;
+        }
+
+        // Clear file selection
+        function clearFileSelection(source) {
+            selectedFiles[source] = null;
+            document.getElementById(`${source}-file-selected`).style.display = 'none';
+            document.getElementById(`${source}FileInput`).value = '';
+        }
+
+        // Upload file and ingest
+        async function uploadFile(source) {
+            const file = selectedFiles[source];
+            
+            if (!file) {
+                alert('Please select a file first');
+                return;
+            }
+
+            try {
+                // Show loading
+                document.getElementById('ingestLoading').classList.add('active');
+                document.getElementById('ingestResponse').style.display = 'none';
+
+                // Create FormData
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // Add include_hourly for fitness
+                if (source === 'fitness') {
+                    const includeHourly = document.getElementById('includeHourlyFile').checked;
+                    formData.append('include_hourly', includeHourly);
+                }
+
+                // Build URL
+                const url = `${API_BASE}/ingest/${source}/file`;
+
+                // Make request
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                // Hide loading
+                document.getElementById('ingestLoading').classList.remove('active');
+
+                // Show response
+                const responseBox = document.getElementById('ingestResponse');
+                responseBox.style.display = 'block';
+                responseBox.className = 'response-box ' + (response.ok ? 'success' : 'error');
+                responseBox.innerHTML = `
+                    <h3>${response.ok ? '✅ Success' : '❌ Error'}</h3>
+                    <pre style="white-space: pre-wrap; margin-top: 15px;">${JSON.stringify(result, null, 2)}</pre>
+                `;
+
+                // Refresh health
+                if (response.ok) {
+                    setTimeout(checkHealth, 1000);
+                    // Clear file selection on success
+                    clearFileSelection(source);
+                }
+
+            } catch (error) {
+                document.getElementById('ingestLoading').classList.remove('active');
+                const responseBox = document.getElementById('ingestResponse');
+                responseBox.style.display = 'block';
+                responseBox.className = 'response-box error';
+                responseBox.innerHTML = `<h3>❌ Error</h3><p>${error.message}</p>`;
+            }
+        }
+
+        // ============================================================================
+        // Formatting Functions
+        // ============================================================================
 
         // Format answer text with proper styling
         function formatAnswer(text) {
@@ -874,6 +1259,47 @@
                         "rem_sleep_percentage": 25,
                         "awake_time_percentage": 5
                     }
+                }
+            ], null, 2);
+        }
+
+        function fillCgmExample() {
+            document.getElementById('cgmData').value = JSON.stringify([
+                {
+                    "patient_id": "12345678-1234-1234-1234-123456789abc",
+                    "report_type": "daily",
+                    "report_date": "2025-08-05",
+                    "range_stats": {
+                        "very_low": {"count": 2, "percentage": 0.69},
+                        "low": {"count": 15, "percentage": 5.21},
+                        "in_range": {"count": 245, "percentage": 85.07},
+                        "high": {"count": 20, "percentage": 6.94},
+                        "very_high": {"count": 6, "percentage": 2.08}
+                    },
+                    "summary_stats": {
+                        "average_glucose": 112,
+                        "std_dev": 28,
+                        "cv": 25,
+                        "gmi": 5.8,
+                        "time_in_range": 85.07,
+                        "time_above_range": 9.03,
+                        "time_below_range": 5.90
+                    },
+                    "time_periods": {
+                        "daytime": {"avg_glucose": 115, "tir": 83.5},
+                        "nighttime": {"avg_glucose": 108, "tir": 88.2}
+                    },
+                    "hyper_stats": {
+                        "events_count": 3,
+                        "avg_duration_minutes": 45,
+                        "max_glucose": 195
+                    },
+                    "hypo_stats": {
+                        "events_count": 2,
+                        "avg_duration_minutes": 25,
+                        "min_glucose": 62
+                    },
+                    "readings": []
                 }
             ], null, 2);
         }

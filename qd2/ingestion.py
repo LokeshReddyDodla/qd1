@@ -6,6 +6,8 @@ from models import (
     ProfileInput, MealInput, FitnessInput, SleepInput,
     ProcessedChunk, IngestionError, Source
 )
+from models_cgm import CGMInput, CGMPayload
+from cgm_utils import make_cgm_point_id, render_cgm_summary, cgm_to_payload
 from chunkers import chunk_profile, chunk_meals, chunk_fitness, chunk_sleep
 from embedding_service import EmbeddingService
 from qdrant_client_wrapper import QdrantManager
@@ -319,6 +321,109 @@ class IngestionPipeline:
             "skipped": skipped,
             "errors": [err.model_dump() for err in errors],
             "batch_id": datetime.now(timezone.utc).isoformat()
+        }
+    
+    def ingest_cgm(self, cgm_reports: List[CGMInput]) -> Dict[str, Any]:
+        """
+        Ingest CGM (Continuous Glucose Monitoring) reports.
+        
+        Args:
+            cgm_reports: List of CGMInput models
+            
+        Returns:
+            Ingestion report
+        """
+        logger.info("Starting CGM ingestion", count=len(cgm_reports))
+        
+        errors: List[IngestionError] = []
+        skipped = 0
+        point_ids = []
+        
+        for idx, cgm in enumerate(cgm_reports):
+            # Validate patient_id
+            valid, error = self._validate_patient_id(
+                cgm.patient_id,
+                idx,
+                Source.CGM
+            )
+            if not valid:
+                errors.append(error)
+                skipped += 1
+                continue
+            
+            try:
+                # Generate point ID
+                point_id = make_cgm_point_id(
+                    cgm.patient_id,
+                    cgm.report_type,
+                    cgm.start_date,
+                    cgm.end_date
+                )
+                
+                # Render summary text
+                summary_text = render_cgm_summary(cgm)
+                
+                # Create payload
+                payload = cgm_to_payload(cgm, summary_text)
+                
+                # Embed summary
+                try:
+                    vector = self.embedding_service.embed_single(summary_text)
+                except Exception as e:
+                    logger.error(
+                        "CGM embedding failed",
+                        doc_index=idx,
+                        patient_id=cgm.patient_id,
+                        error=str(e)
+                    )
+                    errors.append(IngestionError(
+                        doc_index=idx,
+                        patient_id=cgm.patient_id,
+                        reason=f"Embedding error: {str(e)}",
+                        source=Source.CGM
+                    ))
+                    skipped += 1
+                    continue
+                
+                # Upsert to Qdrant
+                self.qdrant_manager.upsert_cgm_point(
+                    point_id=point_id,
+                    vector=vector,
+                    payload=payload.model_dump(mode="json", exclude_none=False)
+                )
+                
+                point_ids.append(point_id)
+                
+                logger.info(
+                    "CGM report ingested",
+                    doc_index=idx,
+                    patient_id=cgm.patient_id,
+                    point_id=point_id,
+                    report_type=cgm.report_type
+                )
+            
+            except Exception as e:
+                logger.error(
+                    "CGM ingestion failed",
+                    doc_index=idx,
+                    patient_id=cgm.patient_id,
+                    error=str(e)
+                )
+                errors.append(IngestionError(
+                    doc_index=idx,
+                    patient_id=cgm.patient_id,
+                    reason=f"Ingestion error: {str(e)}",
+                    source=Source.CGM
+                ))
+                skipped += 1
+        
+        return {
+            "accepted": len(cgm_reports) - skipped,
+            "indexed_points": len(point_ids),
+            "skipped": skipped,
+            "errors": [err.model_dump() for err in errors],
+            "batch_id": datetime.now(timezone.utc).isoformat(),
+            "point_ids": point_ids[:10]  # Return first 10 for reference
         }
     
     def _embed_and_upsert(

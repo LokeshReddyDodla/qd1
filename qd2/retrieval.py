@@ -34,6 +34,70 @@ class RetrievalService:
         self.qdrant_manager = qdrant_manager
         self.llm_service = llm_service
     
+    def _is_cross_domain_query(self, question: str) -> bool:
+        """
+        Detect if question mentions multiple data sources.
+        
+        Args:
+            question: User's question
+            
+        Returns:
+            True if question mentions multiple sources
+        """
+        question_lower = question.lower()
+        
+        # Keywords for each source
+        source_keywords = {
+            'meals': ['meal', 'food', 'eat', 'diet', 'nutrition', 'calorie', 'protein', 'carb', 'fat', 'breakfast', 'lunch', 'dinner', 'snack'],
+            'fitness': ['step', 'walk', 'exercise', 'active', 'activity', 'fitness', 'movement', 'physical'],
+            'sleep': ['sleep', 'rest', 'wake', 'dream', 'insomnia', 'nap'],
+            'profile': ['age', 'height', 'weight', 'bmi', 'gender', 'profile', 'demographic'],
+            'cgm': ['glucose', 'blood sugar', 'cgm', 'hyper', 'hypo', 'glycemia', 'gmi', 'time in range', 'tir', 'a1c', 'diabete']
+        }
+        
+        # Count how many sources are mentioned
+        sources_found = set()
+        for source, keywords in source_keywords.items():
+            if any(keyword in question_lower for keyword in keywords):
+                sources_found.add(source)
+        
+        return len(sources_found) > 1
+    
+    def _detect_mentioned_sources(self, question: str) -> List[Source]:
+        """
+        Detect which specific data sources are mentioned in the question.
+        
+        Args:
+            question: User's question
+            
+        Returns:
+            List of Source enums
+        """
+        question_lower = question.lower()
+        mentioned = []
+        
+        # Check for meals
+        if any(word in question_lower for word in ['meal', 'food', 'eat', 'diet', 'nutrition', 'calorie', 'protein', 'carb', 'fat']):
+            mentioned.append(Source.MEALS)
+        
+        # Check for fitness
+        if any(word in question_lower for word in ['step', 'walk', 'exercise', 'active', 'activity', 'fitness', 'movement']):
+            mentioned.append(Source.FITNESS)
+        
+        # Check for sleep
+        if any(word in question_lower for word in ['sleep', 'rest', 'wake', 'dream']):
+            mentioned.append(Source.SLEEP)
+        
+        # Check for profile
+        if any(word in question_lower for word in ['age', 'height', 'weight', 'bmi', 'gender', 'profile']):
+            mentioned.append(Source.PROFILE)
+        
+        # Check for CGM
+        if any(word in question_lower for word in ['glucose', 'blood sugar', 'cgm', 'hyper', 'hypo', 'glycemia', 'gmi', 'time in range', 'tir', 'a1c', 'diabete']):
+            mentioned.append(Source.CGM)
+        
+        return mentioned
+    
     def resolve_person_to_patient_id(self, person: str) -> Optional[str]:
         """
         Resolve person name or patient_id to patient_id.
@@ -164,6 +228,37 @@ class RetrievalService:
         #     logger.error("Person resolution failed", person=person, error=str(e))
         #     return None
     
+    def _extract_patient_id_from_question(self, question: str) -> Optional[str]:
+        """
+        Extract patient_id (UUID) from question text.
+        
+        Args:
+            question: User's question text
+            
+        Returns:
+            Patient ID if found, None otherwise
+        """
+        import re
+        from utils import is_valid_uuid
+        
+        # Look for UUID pattern in the question
+        # UUID format: 8-4-4-4-12 hexadecimal characters
+        uuid_pattern = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+        matches = re.findall(uuid_pattern, question.lower())
+        
+        if matches:
+            # Return the first valid UUID found
+            for match in matches:
+                if is_valid_uuid(match):
+                    logger.info(
+                        "Extracted patient_id from question",
+                        patient_id=match,
+                        question=question[:100]
+                    )
+                    return match
+        
+        return None
+    
     def query(self, request: QueryRequest) -> QueryResponse:
         """
         Execute RAG query workflow.
@@ -183,12 +278,26 @@ class RetrievalService:
         """
         # Step 1: Resolve person (optional for cross-patient queries)
         patient_id = None
+        logger.info(
+            "Query request received",
+            person=request.person,
+            question=request.question[:100] if request.question else None,
+            source=request.source,
+            from_time=request.from_time,
+            to_time=request.to_time
+        )
+        
         if request.person:
             patient_id = self.resolve_person_to_patient_id(request.person)
             
             if not patient_id:
+                logger.warning(
+                    "Person not found",
+                    person=request.person,
+                    hint="Use exact patient_id (UUID) or check profile data ingestion"
+                )
                 return QueryResponse(
-                    answer=f"Could not find patient '{request.person}'. Please provide the patient_id directly (UUID format). Name resolution requires PostgreSQL with psycopg2 installed.",
+                    answer=f"Could not find patient '{request.person}'. Please provide the patient_id directly (UUID format), or check that profile data with this name has been ingested.",
                     evidence=[],
                     query_metadata={
                         "person": request.person,
@@ -203,7 +312,16 @@ class RetrievalService:
                 patient_id=patient_id
             )
         else:
-            logger.info("Cross-patient query (no person specified)")
+            # Try to extract patient_id from question text if person field is empty
+            extracted_id = self._extract_patient_id_from_question(request.question)
+            if extracted_id:
+                patient_id = extracted_id
+                logger.info(
+                    "Using patient_id extracted from question",
+                    patient_id=patient_id
+                )
+            else:
+                logger.info("Cross-patient query (no person specified)")
         
         # Step 2: Parse time filters
         start_ts = None
@@ -230,14 +348,58 @@ class RetrievalService:
             )
         
         # Step 4: Vector search
-        search_results = self.qdrant_manager.search(
-            query_vector=query_vector,
-            patient_id=patient_id,
-            source=request.source,
-            start_ts=start_ts,
-            end_ts=end_ts,
-            limit=request.top_k
-        )
+        # For cross-domain queries (no source filter), detect if question mentions multiple sources
+        # and retrieve from each source separately to ensure balanced results
+        search_results = []
+        
+        if not request.source and self._is_cross_domain_query(request.question):
+            # Detect which sources are mentioned in the question
+            mentioned_sources = self._detect_mentioned_sources(request.question)
+            
+            if len(mentioned_sources) > 1:
+                # Retrieve from each source separately
+                logger.info(
+                    "Cross-domain query detected",
+                    sources=mentioned_sources,
+                    strategy="multi-source retrieval"
+                )
+                
+                per_source_limit = max(3, request.top_k // len(mentioned_sources))
+                
+                for source in mentioned_sources:
+                    source_results = self.qdrant_manager.search(
+                        query_vector=query_vector,
+                        patient_id=patient_id,
+                        source=source,
+                        start_ts=start_ts,
+                        end_ts=end_ts,
+                        limit=per_source_limit
+                    )
+                    search_results.extend(source_results)
+                
+                # Sort by score and limit to top_k
+                search_results.sort(key=lambda x: x["score"], reverse=True)
+                search_results = search_results[:request.top_k]
+            else:
+                # Single domain query - normal search
+                search_results = self.qdrant_manager.search(
+                    query_vector=query_vector,
+                    patient_id=patient_id,
+                    source=request.source,
+                    start_ts=start_ts,
+                    end_ts=end_ts,
+                    limit=request.top_k
+                )
+        else:
+            # Source filter specified or not a cross-domain query - normal search
+            search_results = self.qdrant_manager.search(
+                query_vector=query_vector,
+                patient_id=patient_id,
+                source=request.source,
+                start_ts=start_ts,
+                end_ts=end_ts,
+                limit=request.top_k
+            )
         
         # Step 5: Format evidence
         evidence = []
@@ -250,6 +412,14 @@ class RetrievalService:
                 )
             )
         
+        # Log evidence retrieval details
+        logger.info(
+            "Evidence retrieved",
+            count=len(evidence),
+            sources=[e.payload.get("source") for e in evidence[:5]] if evidence else [],
+            dates=[e.payload.get("date") for e in evidence[:5]] if evidence else []
+        )
+        
         # Step 6: Generate answer
         if not evidence:
             if request.person:
@@ -258,6 +428,7 @@ class RetrievalService:
                 answer = "I don't have any data matching your query criteria."
         else:
             person_name = request.person if request.person else "any patient"
+            # Use all evidence (up to 50) for LLM to generate comprehensive answer
             answer = self.llm_service.generate_answer(
                 question=request.question,
                 evidence=[{"payload": e.payload} for e in evidence],
@@ -273,12 +444,14 @@ class RetrievalService:
                 "from": request.from_time,
                 "to": request.to_time
             } if request.from_time or request.to_time else None,
-            "results_count": len(evidence)
+            "results_count": len(evidence),
+            "displayed_evidence_count": min(5, len(evidence))
         }
         
+        # Return only top 5 evidence items for display, but LLM used all available chunks
         return QueryResponse(
             answer=answer,
-            evidence=evidence,
+            evidence=evidence[:5],  # Display only top 5 evidence items
             query_metadata=query_metadata
         )
 

@@ -1,0 +1,50 @@
+# Docker deployment files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+server.log
+
+# Data directories (use volumes instead)
+qdrant_storage/
+
+# Test files
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation working files
+*.md~
+profileerr.txt
+sample_cgm.json
+
+# macOS
+.DS_Store
+
+# Profile data
+profile_fixed.json

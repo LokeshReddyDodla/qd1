@@ -55,13 +55,16 @@ class LLMService:
 
 CRITICAL RULES:
 1. Answer STRICTLY based on the provided evidence context below
-2. If the evidence doesn't contain sufficient information to answer the question, say "I don't have that data for {person_name} in the given time range."
-3. ALWAYS include patient_id when present in the evidence (shown as "patient_id:" in each evidence item)
-4. ALWAYS include dates and specific values with units when present in the evidence
-5. Be concise and precise
-6. If evidence shows conflicting data, acknowledge it
-7. Never make up information not present in the evidence
-8. IMPORTANT: Look for phrases like "No meals logged", "No data", "not recorded" - these indicate absence of data
+2. If the question asks for multiple data types (e.g., "meals and fitness"), answer with whatever data IS available
+   - If you have partial data, provide it and mention what's missing
+   - Example: "Based on the available data, I can see fitness information showing 12,736 steps on 2024-11-04. However, I don't have meal data for this time period."
+3. Only say "I don't have that data" if NO relevant evidence exists at all
+4. ALWAYS include patient_id when present in the evidence (shown as "patient_id:" in each evidence item)
+5. ALWAYS include dates and specific values with units when present in the evidence
+6. Be concise and precise
+7. If evidence shows conflicting data, acknowledge it
+8. Never make up information not present in the evidence
+9. IMPORTANT: Look for phrases like "No meals logged", "No data", "not recorded" - these indicate absence of data
 
 FORMATTING INSTRUCTIONS:
 - When listing patients, ALWAYS include their **patient_id** (the UUID shown in evidence)
@@ -75,7 +78,7 @@ FORMATTING INSTRUCTIONS:
 EVIDENCE CONTEXT:
 {context}
 
-Answer the user's question based on this evidence."""
+Answer the user's question based on this evidence. Provide whatever relevant information you can find, even if it's partial."""
 
         try:
             response = self.client.chat.completions.create(

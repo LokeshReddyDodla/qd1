@@ -44,7 +44,109 @@ A production-ready Retrieval-Augmented Generation (RAG) system for querying pati
 
 ## 🚀 Quick Start
 
-### 1. Clone and Setup
+### 🌟 **NEW!** Railway Deployment (Production-Ready in 10 Minutes!) 🚂
+
+**Deploy your entire system to the cloud with automatic HTTPS and monitoring:**
+
+```bash
+# 1. Create Qdrant Cloud cluster (2 min)
+# - Go to https://cloud.qdrant.io/
+# - Create free cluster, copy URL and API key
+
+# 2. Push to GitHub (1 min)
+git add .
+git commit -m "Deploy to Railway"
+git push origin main
+
+# 3. Deploy to Railway (1 min)
+# - Go to https://railway.app/new
+# - Deploy from GitHub repo
+# - Add environment variables (see .env.railway)
+
+# 4. Done! Your app is live at:
+# https://your-app.up.railway.app
+```
+
+✅ **Fully managed** - Zero infrastructure to maintain  
+✅ **Auto-deploy** - Push to GitHub, auto-deploys  
+✅ **HTTPS included** - Automatic SSL certificates  
+✅ **Custom domains** - Add your own domain easily  
+✅ **One-click scaling** - Scale up when needed  
+✅ **$5/month** - Affordable production hosting  
+
+📖 **Complete Railway guide**: [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md)  
+🔧 **Environment variables**: [.env.railway](.env.railway)
+
+---
+
+### Option A: Qdrant Cloud (Recommended for Local Development) ☁️
+
+**Production-ready local setup in 5 minutes with zero infrastructure management:**
+
+```bash
+# 1. Create free cluster at https://cloud.qdrant.io/
+# - 1 GB RAM, 4 GB disk - FREE!
+# - Automatic backups, HA, monitoring included
+# - Copy cluster URL and API key
+
+# 2. Configure environment
+cp .env.docker .env
+nano .env
+
+# Add these to .env:
+QDRANT_HOST=your-cluster.aws.cloud.qdrant.io
+QDRANT_API_KEY=your-api-key-from-dashboard
+QDRANT_USE_HTTPS=true
+OPENAI_API_KEY=your-openai-key
+
+# 3. Start application
+python main.py
+
+# 4. Access at http://localhost:1531
+```
+
+✅ **Zero maintenance** - Fully managed  
+✅ **Automatic backups** - Never lose data  
+✅ **Production-ready** - HA, monitoring, security  
+✅ **Free tier** - Perfect for development  
+✅ **Scales with a click** - When you need more  
+
+📖 **Complete guide**: [QDRANT_CLOUD_GUIDE.md](QDRANT_CLOUD_GUIDE.md)
+
+---
+
+### Option B: Docker Deployment (For Full Control) 🐳
+
+**Complete deployment with one command:**
+
+```bash
+# 1. Set your API key
+cp .env.docker .env
+# Edit .env and add your OPENAI_API_KEY
+
+# 2. Start everything (app + databases)
+./docker-start.sh
+
+# Or use make commands
+make docker-up
+
+# Access at: http://localhost:1531
+```
+
+**All services run in Docker containers with:**
+- ✅ Automatic health checks
+- ✅ Persistent data volumes
+- ✅ Isolated networking
+- ✅ Auto-restart on failure
+
+📖 **See [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) for complete Docker guide**  
+📋 **See [DOCKER_QUICK_REF.md](DOCKER_QUICK_REF.md) for command reference**
+
+---
+
+### Option C: Local Development 💻
+
+**For development with local Python:**
 
 ```bash
 cd /path/to/qd2
@@ -58,80 +160,138 @@ pip install -r requirements.txt
 Create a `.env` file in the project root:
 
 ```bash
+# Copy from template
+cp env_template.txt .env
+```
+
+Edit `.env` with your settings:
+
+```bash
+# OpenAI Configuration (REQUIRED)
+OPENAI_API_KEY=your_openai_api_key_here
+
 # Qdrant Configuration
 QDRANT_HOST=localhost
 QDRANT_PORT=6333
 QDRANT_COLLECTION_NAME=people_data
-QDRANT_VECTOR_SIZE=1536
 
-# OpenAI Configuration
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-OPENAI_LLM_MODEL=gpt-4o-mini
-OPENAI_LLM_TEMPERATURE=0.1
-OPENAI_LLM_MAX_TOKENS=1000
-
-# PostgreSQL Configuration
+# Other services (defaults work for Docker setup)
 POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=patient_db
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-
-# MongoDB Configuration
 MONGO_URI=mongodb://localhost:27017
-MONGO_DB=patient_data
-
-# Application Configuration
-LOG_LEVEL=INFO
-ENVIRONMENT=development
-EMBEDDING_BATCH_SIZE=64
-INGEST_BATCH_SIZE=100
-DEFAULT_TOP_K=10
-MAX_TOP_K=50
 ```
 
-### 3. Start Infrastructure
+### 3. Start Infrastructure (Databases Only)
 
 ```bash
-# Start Qdrant, PostgreSQL, and MongoDB
-docker-compose up -d
+# Start only Qdrant, PostgreSQL, and MongoDB
+make start
+# Or: docker-compose up -d qdrant postgres mongodb
 
 # Verify services are running
 docker-compose ps
 ```
 
-### 4. Run the Application
+### 4. Run the Application Locally
 
 ```bash
-# Start FastAPI server
+# Start FastAPI server (local Python)
 python main.py
 
-# Server will start at http://localhost:8000
-# Frontend UI: http://localhost:8000
-# API docs: http://localhost:8000/docs
-# API info: http://localhost:8000/api
+# Or use make
+make run
+
+# Server will start at http://localhost:1531
+# Frontend UI: http://localhost:1531
+# API docs: http://localhost:1531/docs
 ```
 
 **🎨 Frontend Interface Available!**
 
-Open http://localhost:8000 in your browser for a beautiful web interface to:
-- Ingest data with example templates
+Open http://localhost:1531 in your browser for a beautiful web interface to:
+- Ingest data with example templates (Profile, Meals, Fitness, Sleep, CGM)
 - Execute natural language queries with filters
 - View results with evidence and metadata
 - Monitor collection statistics
 
 See [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md) for detailed usage instructions.
 
-### 5. Test the System
+---
+
+## 🐳 Docker Deployment Details
+
+### All Services in Docker
 
 ```bash
-# Test ingestion
-python test_ingestion.py
+# Start everything (recommended for production)
+docker-compose up -d
 
-# Test queries (after ingestion)
-python test_query.py
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs -f app
+
+# Stop everything
+docker-compose down
 ```
+
+### Individual Service Control
+
+```bash
+# Restart app only
+docker-compose restart app
+
+# Rebuild after code changes
+docker-compose build app
+docker-compose up -d app
+
+# Shell into container
+docker-compose exec app bash
+
+# Run diagnostic script
+docker-compose exec app python check_patient_data.py <patient_id>
+```
+
+### Data Persistence
+
+All data persists in Docker volumes:
+- `qdrant_storage` - Vector embeddings
+- `postgres_data` - Patient metadata
+- `mongo_data` - Source documents
+
+```bash
+# Backup volumes
+docker run --rm -v qd2_qdrant_storage:/source -v $(pwd)/backups:/backup \
+  alpine tar czf /backup/qdrant-backup.tar.gz -C /source .
+
+# List volumes
+docker volume ls | grep qd2
+```
+
+---
+
+## 🎯 Using Make Commands
+
+```bash
+# Local development
+make setup          # Install dependencies
+make start          # Start databases only
+make run            # Run app locally
+make stop           # Stop databases
+
+# Docker deployment  
+make docker-up      # Start all services
+make docker-down    # Stop all services
+make docker-logs    # View logs
+make docker-rebuild # Rebuild app
+make docker-status  # Show status
+
+# Development
+make test           # Run tests
+make frontend       # Open in browser
+```
+
+---
 
 ## 📊 Data Models
 

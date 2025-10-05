@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     # Qdrant Configuration
     qdrant_host: str = "localhost"
     qdrant_port: int = 6333
+    qdrant_api_key: str = ""  # Optional - for Qdrant Cloud
+    qdrant_use_https: bool = False  # Set to True for Qdrant Cloud
     qdrant_collection_name: str = "people_data"
     qdrant_vector_size: int = 1536
     

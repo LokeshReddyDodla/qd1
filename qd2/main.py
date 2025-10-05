@@ -1,17 +1,20 @@
 """FastAPI application for RAG over patient data."""
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from typing import List
+from typing import List, Optional
 import structlog
 from pathlib import Path
+import json
+import tempfile
 
 from config import settings
 from models import (
     ProfileInput, MealInput, FitnessInput, SleepInput,
     IngestResponse, QueryRequest, QueryResponse
 )
+from models_cgm import CGMInput
 from embedding_service import EmbeddingService
 from qdrant_client_wrapper import QdrantManager
 from llm_service import LLMService
@@ -275,6 +278,326 @@ async def ingest_sleep(sleep_reports: List[SleepInput]):
         )
 
 
+@app.post("/ingest/cgm", response_model=IngestResponse)
+async def ingest_cgm(cgm_reports: List[CGMInput]):
+    """
+    Ingest CGM (Continuous Glucose Monitoring) reports.
+    
+    Creates one summary chunk per report (daily/weekly/monthly/custom).
+    
+    Note: Automatically converts MongoDB date objects {"$date": "..."} to plain strings.
+    """
+    if not cgm_reports:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Empty CGM reports list"
+        )
+    
+    try:
+        services = get_services()
+        result = services["ingestion"].ingest_cgm(cgm_reports)
+        return result
+    except Exception as e:
+        logger.error("CGM ingestion failed", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ingestion failed: {str(e)}"
+        )
+
+
+# ============================================================================
+# File Upload Endpoints (for large JSON files)
+# ============================================================================
+
+@app.post("/ingest/profile/file", response_model=IngestResponse)
+async def ingest_profile_file(file: UploadFile = File(...)):
+    """
+    Ingest profile data from a JSON file upload.
+    
+    Accepts a JSON file containing an array of profile objects.
+    This avoids issues with pasting large JSON data in the UI.
+    """
+    try:
+        # Read file content
+        content = await file.read()
+        
+        # Parse JSON
+        try:
+            profiles_data = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid JSON format: {str(e)}"
+            )
+        
+        # Validate it's a list
+        if not isinstance(profiles_data, list):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="JSON must contain an array of profile objects"
+            )
+        
+        # Convert to ProfileInput models
+        profiles = [ProfileInput(**profile) for profile in profiles_data]
+        
+        # Ingest
+        services = get_services()
+        result = services["ingestion"].ingest_profiles(profiles)
+        
+        logger.info("Profile file ingested successfully", 
+                   filename=file.filename, 
+                   records=len(profiles),
+                   indexed=result["indexed_points"])
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Profile file ingestion failed", 
+                    filename=file.filename, 
+                    error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"File ingestion failed: {str(e)}"
+        )
+
+
+@app.post("/ingest/meals/file", response_model=IngestResponse)
+async def ingest_meals_file(file: UploadFile = File(...)):
+    """
+    Ingest meal data from a JSON file upload.
+    
+    Accepts a JSON file containing an array of meal objects.
+    """
+    try:
+        content = await file.read()
+        
+        try:
+            meals_data = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid JSON format: {str(e)}"
+            )
+        
+        if not isinstance(meals_data, list):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="JSON must contain an array of meal objects"
+            )
+        
+        meals = [MealInput(**meal) for meal in meals_data]
+        
+        services = get_services()
+        result = services["ingestion"].ingest_meals(meals)
+        
+        logger.info("Meals file ingested successfully", 
+                   filename=file.filename, 
+                   records=len(meals),
+                   indexed=result["indexed_points"])
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Meals file ingestion failed", 
+                    filename=file.filename, 
+                    error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"File ingestion failed: {str(e)}"
+        )
+
+
+@app.post("/ingest/fitness/file", response_model=IngestResponse)
+async def ingest_fitness_file(
+    file: UploadFile = File(...),
+    include_hourly: bool = Form(False)
+):
+    """
+    Ingest fitness data from a JSON file upload.
+    
+    Accepts a JSON file containing an array of fitness report objects.
+    Optionally includes hourly chunks if include_hourly=true.
+    """
+    try:
+        content = await file.read()
+        
+        try:
+            fitness_data = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid JSON format: {str(e)}"
+            )
+        
+        if not isinstance(fitness_data, list):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="JSON must contain an array of fitness report objects"
+            )
+        
+        fitness_reports = [FitnessInput(**report) for report in fitness_data]
+        
+        services = get_services()
+        result = services["ingestion"].ingest_fitness(
+            fitness_reports,
+            include_hourly=include_hourly
+        )
+        
+        logger.info("Fitness file ingested successfully", 
+                   filename=file.filename, 
+                   records=len(fitness_reports),
+                   indexed=result["indexed_points"])
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Fitness file ingestion failed", 
+                    filename=file.filename, 
+                    error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"File ingestion failed: {str(e)}"
+        )
+
+
+@app.post("/ingest/sleep/file", response_model=IngestResponse)
+async def ingest_sleep_file(file: UploadFile = File(...)):
+    """
+    Ingest sleep data from a JSON file upload.
+    
+    Accepts a JSON file containing an array of sleep report objects.
+    """
+    try:
+        content = await file.read()
+        
+        try:
+            sleep_data = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid JSON format: {str(e)}"
+            )
+        
+        if not isinstance(sleep_data, list):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="JSON must contain an array of sleep report objects"
+            )
+        
+        sleep_reports = [SleepInput(**report) for report in sleep_data]
+        
+        services = get_services()
+        result = services["ingestion"].ingest_sleep(sleep_reports)
+        
+        logger.info("Sleep file ingested successfully", 
+                   filename=file.filename, 
+                   records=len(sleep_reports),
+                   indexed=result["indexed_points"])
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Sleep file ingestion failed", 
+                    filename=file.filename, 
+                    error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"File ingestion failed: {str(e)}"
+        )
+
+
+def convert_mongodb_dates(obj):
+    """
+    Recursively convert MongoDB date objects to ISO-8601 strings.
+    
+    MongoDB exports dates as: {"$date": "2025-08-04T00:00:00Z"}
+    This function converts them to plain strings: "2025-08-04T00:00:00Z"
+    
+    Args:
+        obj: Dictionary, list, or primitive value
+        
+    Returns:
+        Object with MongoDB dates converted to strings
+    """
+    if isinstance(obj, dict):
+        # Check if this is a MongoDB date object
+        if "$date" in obj and len(obj) == 1:
+            return obj["$date"]
+        # Recursively process dictionary values
+        return {key: convert_mongodb_dates(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        # Recursively process list items
+        return [convert_mongodb_dates(item) for item in obj]
+    else:
+        # Return primitive values as-is
+        return obj
+
+
+@app.post("/ingest/cgm/file", response_model=IngestResponse)
+async def ingest_cgm_file(file: UploadFile = File(...)):
+    """
+    Ingest CGM (Continuous Glucose Monitoring) data from a JSON file upload.
+    
+    Accepts a JSON file containing an array of CGM report objects.
+    Each report should include:
+    - patient_id, report_type, start_date, end_date
+    - cgm_range_stats, cgm_summary_stats
+    - Optional: time_period_stats, hyper_stats, hypo_stats
+    
+    Note: Automatically converts MongoDB date objects {"$date": "..."} to plain strings.
+    """
+    try:
+        content = await file.read()
+        
+        try:
+            cgm_data = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid JSON format: {str(e)}"
+            )
+        
+        if not isinstance(cgm_data, list):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="JSON must contain an array of CGM report objects"
+            )
+        
+        # Convert MongoDB date objects to plain strings
+        cgm_data = convert_mongodb_dates(cgm_data)
+        
+        cgm_reports = [CGMInput(**report) for report in cgm_data]
+        
+        services = get_services()
+        result = services["ingestion"].ingest_cgm(cgm_reports)
+        
+        logger.info("CGM file ingested successfully", 
+                   filename=file.filename, 
+                   records=len(cgm_reports),
+                   indexed=result["indexed_points"])
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("CGM file ingestion failed", 
+                    filename=file.filename, 
+                    error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"File ingestion failed: {str(e)}"
+        )
+
+
 # ============================================================================
 # Query Endpoint (RAG)
 # ============================================================================
@@ -342,11 +665,16 @@ async def delete_patient_data(patient_id: str):
 
 if __name__ == "__main__":
     import uvicorn
+    import os
+    
+    # Railway provides PORT environment variable
+    port = int(os.getenv("PORT", 1531))
+    
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=1531,
-        reload=True,
+        port=port,
+        reload=False,  # Disable reload in production
         log_level=settings.log_level.lower()
     )
 

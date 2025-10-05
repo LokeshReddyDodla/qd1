@@ -38,13 +38,35 @@ class QdrantManager:
     
     def __init__(self):
         """Initialize Qdrant client with extended timeout."""
-        self.client = QdrantClient(
-            host=settings.qdrant_host,
-            port=settings.qdrant_port,
-            timeout=300  # 5 minutes timeout for large batches
-        )
+        # Support both local Docker and Qdrant Cloud
+        client_kwargs = {
+            "host": settings.qdrant_host,
+            "port": settings.qdrant_port,
+            "timeout": 300  # 5 minutes timeout for large batches
+        }
+        
+        # Add API key if using Qdrant Cloud
+        if settings.qdrant_api_key:
+            client_kwargs["api_key"] = settings.qdrant_api_key
+            logger.info("Using Qdrant Cloud with API key authentication")
+        
+        # Add HTTPS if enabled (for Qdrant Cloud)
+        if settings.qdrant_use_https:
+            client_kwargs["https"] = True
+            client_kwargs["prefer_grpc"] = False  # Use REST API over HTTPS
+            logger.info("Using HTTPS for Qdrant connection")
+        
+        self.client = QdrantClient(**client_kwargs)
         self.collection_name = settings.qdrant_collection_name
         self.vector_size = settings.qdrant_vector_size
+        
+        logger.info(
+            "Qdrant client initialized",
+            host=settings.qdrant_host,
+            port=settings.qdrant_port,
+            https=settings.qdrant_use_https,
+            has_api_key=bool(settings.qdrant_api_key)
+        )
     
     def ensure_collection_exists(self) -> None:
         """
@@ -313,4 +335,42 @@ class QdrantManager:
             )
         )
         return result.count
+    
+    def upsert_cgm_point(
+        self,
+        point_id: str,
+        vector: List[float],
+        payload: Dict[str, Any]
+    ) -> None:
+        """
+        Upsert a single CGM report point to Qdrant.
+        
+        Args:
+            point_id: Stable point ID (from make_cgm_point_id)
+            vector: Embedding vector
+            payload: CGM payload dict
+        """
+        # Convert stable string ID to UUID for Qdrant compatibility
+        point_uuid = stable_id_to_uuid(point_id)
+        
+        # Store original stable_id in payload for reference
+        payload['_stable_id'] = point_id
+        
+        point = PointStruct(
+            id=point_uuid,
+            vector=vector,
+            payload=payload
+        )
+        
+        self.client.upsert(
+            collection_name=self.collection_name,
+            points=[point]
+        )
+        
+        logger.info(
+            "CGM point upserted",
+            point_id=point_id,
+            patient_id=payload.get("patient_id")
+        )
+
 

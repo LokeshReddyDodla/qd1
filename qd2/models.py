@@ -16,6 +16,7 @@ class Source(str, Enum):
     MEALS = "meals"
     FITNESS = "fitness"
     SLEEP = "sleep"
+    CGM = "cgm"
 
 
 class ReportType(str, Enum):
@@ -23,6 +24,7 @@ class ReportType(str, Enum):
     DAILY = "daily"
     WEEKLY = "weekly"
     MONTHLY = "monthly"
+    CUSTOM = "custom"
 
 
 class Section(str, Enum):

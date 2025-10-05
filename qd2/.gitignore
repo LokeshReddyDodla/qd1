@@ -54,3 +54,43 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
+# Guide files (documentation only, not needed in repo)
+Guidefiles/
+*_GUIDE.md
+*_SUMMARY.md
+*_GUIDE/
+ARCHITECTURE.md
+PROJECT_SUMMARY.md
+QUICKSTART.md
+INDEX.md
+FIXES_APPLIED.md
+FRONTEND_GUIDE.md
+CGM_*.md
+CUSTOM_REPORT_TYPE_FIX.md
+DOCKER_QUICK_REF.md
+DOCKER_SETUP_SUMMARY.md
+FILE_UPLOAD_GUIDE.md
+FIX_SUMMARY_*.md
+QDRANT_*.md
+RAILWAY_*.md
+SESSION_SUMMARY_*.md
+TROUBLESHOOTING_*.md
+
+# Example and test files
+example_*.py
+*_example.py
+fix_*.py
+setup_db.py
+profile_fixed.json
+profileerr.txt
+
+# Sample data files
+sample_*.json
+*_sample.json
+
+# Diagnostic scripts
+diagnose.sh
+check_*.py
+
+# Server logs
+server.log
