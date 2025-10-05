@@ -1,14 +1,14 @@
 [phases.setup]
-nixPkgs = ["python312"]
+nixPkgs = ["python312", "python312Packages.pip"]
 
 [phases.install]
 cmds = [
     "cd qd2",
-    "python -m pip install --upgrade pip",
-    "python -m pip install -r requirements.txt"
+    "pip install --upgrade pip",
+    "pip install -r requirements.txt"
 ]
 
 [phases.build]
 
 [start]
-cmd = "cd qd2 && python -m uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1"
+cmd = "cd qd2 && uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1"
