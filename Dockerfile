@@ -11,11 +11,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Expose port (Railway will set this dynamically via $PORT)
-EXPOSE $PORT
-
-# Health check (using PORT environment variable)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import os, requests; requests.get(f'http://localhost:{os.getenv(\"PORT\", \"8080\")}/health', timeout=5)" || exit 1
+EXPOSE 8080
 
 # Run the application (Railway provides $PORT environment variable)
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}
+# Using shell form to properly expand environment variables
+CMD sh -c "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"
